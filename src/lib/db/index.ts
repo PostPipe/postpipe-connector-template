@@ -1,14 +1,16 @@
-import { DatabaseAdapter } from '../../types';
+import { DatabaseAdapter, PostPipeIngestPayload } from '../../types';
 import { MongoAdapter } from './mongodb';
+import { PostgresAdapter } from './postgres';
 
-
-export function getAdapter(): DatabaseAdapter {
-  // Auto-detect MongoDB if URI is present
-  const type = process.env.DB_TYPE?.toLowerCase() || (process.env.MONGODB_URI ? 'mongodb' : undefined);
+export function getAdapter(forcedType?: string): DatabaseAdapter {
+  const type = forcedType?.toLowerCase() || process.env.DB_TYPE?.toLowerCase();
 
   switch (type) {
     case 'mongodb':
       return new MongoAdapter();
+    case 'postgres':
+    case 'postgresql':
+      return new PostgresAdapter();
     default:
       console.warn(`[Config] No valid DB_TYPE set (got '${type}'). Defaulting to Memory (Dry Run).`);
       return new MemoryAdapter();
@@ -16,10 +18,21 @@ export function getAdapter(): DatabaseAdapter {
 }
 
 class MemoryAdapter implements DatabaseAdapter {
-  async connect() {
+  private store: PostPipeIngestPayload[] = [];
+
+  async connect(context?: any) {
     console.log("[MemoryAdapter] Connected (Data will be lost on restart)");
   }
-  async insert(payload: any) {
-    console.log("[MemoryAdapter] Received:", JSON.stringify(payload, null, 2));
+  async insert(submission: PostPipeIngestPayload): Promise<void> {
+    console.log('[MemoryAdapter] Inserted:', submission);
+    this.store.push(submission);
+  }
+  async query(formId: string, options?: any): Promise<PostPipeIngestPayload[]> {
+    const results = this.store
+      .filter(s => (s as any).formId === formId)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    const limit = options?.limit || 50;
+    return results.slice(0, limit);
   }
 }

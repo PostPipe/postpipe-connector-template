@@ -36,33 +36,69 @@ npm run dev
 The server will listen on port 3000.
 Endpoint: `POST http://localhost:3000/postpipe/ingest`
 
-## 🚀 Deployment
+## 📦 Deployment
 
-### 1-Click Deploy
+### Docker
 
-Use the buttons below to deploy instantly:
+```bash
+docker build -t my-connector .
+docker run -p 3000:3000 --env-file .env my-connector
+```
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Sourodip-1/postpipe-connector-template&project-name=postpipe-connector&repository-name=postpipe-connector&env=POSTPIPE_CONNECTOR_ID,POSTPIPE_CONNECTOR_SECRET)
+### Vercel / Serverless
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FSourodip-1%2Fpostpipe-connector-template%2Fmain%2Fazuredeploy.json)
+This project is set up as a standard Express app. To deploy to Vercel, simply add a `vercel.json`:
 
-### Manual Deployment
-
-1. **Clone & Install**
-   ```bash
-   git clone https://github.com/Sourodip-1/postpipe-connector-template
-   cd postpipe-connector-template
-   npm install
-   ```
-2. **Configure Environment**
-   Set `POSTPIPE_CONNECTOR_ID` and `POSTPIPE_CONNECTOR_SECRET` in your dashboard or `.env` file.
-
-3. **Deploy**
-   - **Docker**: `docker build -t connector . && docker run -p 3000:3000 connector`
-   - **Vercel**: `vercel deploy`
-   - **Azure**: Use the "Deploy to Azure" button or CLI.
+```json
+{
+  "version": 2,
+  "builds": [{ "src": "src/server.ts", "use": "@vercel/node" }],
+  "routes": [{ "src": "/(.*)", "dest": "src/server.ts" }]
+}
+```
 
 ## 🛠 Troubleshooting
 
 - **Invalid Signature**: Check that `POSTPIPE_CONNECTOR_SECRET` matches exactly what is in your PostPipe Dashboard.
 - **Timestamp Skew**: Ensure your server's clock is synced (NTP). Requests older than 5 minutes are rejected.
+
+## 🌐 Multi-Database Routing
+
+This connector supports routing submissions to different databases based on the Form configuration.
+
+### 1. Configure in Web App
+
+In the **Form Builder**, use the **Target Database** feature:
+
+1.  Click **[+ Add DB]**.
+2.  Enter an ID (e.g., `marketing`).
+3.  Select this ID for your form.
+
+### 2. Configure Connector Environment
+
+The connector dynamically looks for an environment variable matching the ID:
+
+```env
+# Default DB
+MONGODB_URI=mongodb+srv://...
+
+# Secondary DB (ID: "marketing")
+MONGODB_URI_MARKETING=mongodb+srv://...
+
+# Another DB (ID: "finance")
+MONGODB_URI_FINANCE=mongodb+srv://...
+```
+
+**Note**: The connector automatically maps the ID to uppercase and prepends `MONGODB_URI_`.
+
+### 3. Data Fetching
+
+You can fetch submissions directly from the connector (bypassing PostPipe cloud) using the local API:
+
+**Endpoint**: `GET /api/postpipe/forms/:formId/submissions`
+
+**Parameters**:
+
+- `limit` (optional): Number of records (default 50).
+
+**CORS**: Enabled by default for all origins.
