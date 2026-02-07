@@ -30,18 +30,22 @@ if (mongoKeys.length === 0 && pgKeys.length === 0 && (process.env.DB_TYPE === 'm
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// Enable CORS for all routes
-app.use(cors());
+// --- Prefix Resolution Helper ---
+const VAR_PREFIX = process.env.POSTPIPE_VAR_PREFIX || "";
 
-// IMPORTANT: We need the raw body for signature verification
-app.use(express.json({
-    verify: (req: any, res, buf) => {
-        req.rawBody = buf.toString();
+function getPrefixedEnv(key: string): string | undefined {
+    if (VAR_PREFIX) {
+        const prefixed = `${VAR_PREFIX}_${key}`;
+        if (process.env[prefixed]) {
+            console.log(`[Config] Resolved '${key}' from prefixed variable: ${prefixed}`);
+            return process.env[prefixed];
+        }
     }
-}));
+    return process.env[key];
+}
 
-const CONNECTOR_ID = process.env.POSTPIPE_CONNECTOR_ID;
-const CONNECTOR_SECRET = process.env.POSTPIPE_CONNECTOR_SECRET;
+const CONNECTOR_ID = getPrefixedEnv('POSTPIPE_CONNECTOR_ID');
+const CONNECTOR_SECRET = getPrefixedEnv('POSTPIPE_CONNECTOR_SECRET');
 
 if (!CONNECTOR_ID || !CONNECTOR_SECRET) {
     console.error("❌ CRITICAL ERROR: POSTPIPE_CONNECTOR_ID or POSTPIPE_CONNECTOR_SECRET is missing.");
@@ -75,7 +79,36 @@ function rateLimit(req: Request, res: Response, next: express.NextFunction) {
     next();
 }
 
+app.use(cors());
+
+// --- Body Parsing Middleware ---
+// IMPORTANT: We use a custom verify function to capture the raw body buffer
+// for HMAC signature verification.
+app.use(express.json({
+    limit: '5mb',
+    verify: (req: any, res, buf) => {
+        req.rawBody = buf;
+    }
+}));
+
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+
 app.use(rateLimit);
+
+// --- Health Check / Diagnostic ---
+app.get('/', (req, res) => {
+    res.json({
+        status: 'ok',
+        service: 'PostPipe Connector',
+        version: '1.0.0',
+        config: {
+            dbTypeDetected: process.env.DB_TYPE || 'InMemory',
+            hasConnectorId: !!process.env.POSTPIPE_CONNECTOR_ID,
+            mongoDetected: Object.keys(process.env).some(k => k.startsWith('MONGODB_URI')),
+            pgDetected: Object.keys(process.env).some(k => k.startsWith('POSTGRES_URL') || k.startsWith('DATABASE_URL'))
+        }
+    });
+});
 // ----------------------------------------
 
 // --- Core Authentication Middleware ---
@@ -259,7 +292,8 @@ app.get('/api/postpipe/forms/:formId/submissions', async (req: Request, res: Res
             }
         }
 
-        const adapter = getAdapter(dbType as string);
+        // Pass the database type from the parsed databaseConfig or dbType query parameter
+        const adapter = getAdapter((dbConfigParsed?.type || dbType) as string);
         // Ensure strictly connected/reconnected if needed
         await adapter.connect({ databaseConfig: dbConfigParsed });
 
@@ -271,10 +305,21 @@ app.get('/api/postpipe/forms/:formId/submissions', async (req: Request, res: Res
     }
 });
 
+// --- Diagnostic Catch-All ---
+app.use((req, res) => {
+    console.warn(`[404] Route Not Found: ${req.method} ${req.originalUrl} from IP: ${req.ip}`);
+    res.status(404).json({ 
+        error: "Not Found", 
+        message: `Route ${req.originalUrl} does not exist on this connector.`,
+        availableRoutes: ["POST /postpipe/ingest", "GET /postpipe/data", "GET /api/postpipe/forms/:formId/submissions"]
+    });
+});
+
 if (require.main === module) {
     app.listen(PORT, () => {
         console.log(`🔒 PostPipe Connector listening on port ${PORT}`);
-        console.log(`📝 Mode: ${process.env.DB_TYPE || 'InMemory'}`);
+        console.log(`📝 Default Mode: ${process.env.DB_TYPE || 'InMemory'}`);
+        console.log(`🌐 Health Check: http://localhost:${PORT}/`);
     });
 }
 
