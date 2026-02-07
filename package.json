@@ -12,15 +12,23 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+<<<<<<< HEAD
     "mongodb": "^5.7.0",
     "pg": "^8.11.3"
+=======
+    "mongodb": "^5.7.0"
+>>>>>>> 7fff7310c74fae35b44c2946cfd83521848a29cc
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.17",
     "@types/node": "^20.5.0",
+<<<<<<< HEAD
     "@types/pg": "^8.10.2",
     "nodemon": "^3.1.11",
+=======
+    "nodemon": "^3.0.1",
+>>>>>>> 7fff7310c74fae35b44c2946cfd83521848a29cc
     "ts-node": "^10.9.1",
     "typescript": "^5.1.6"
   }

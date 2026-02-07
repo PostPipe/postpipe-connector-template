@@ -22,8 +22,36 @@ interface DbRouteConfig {
 // --- Connection Pooling ---
 // Map of URI -> MongoClient Promise (to handle race conditions during connect)
 const connectionPool = new Map<string, Promise<MongoClient>>();
+import * as fs from 'fs';
+import * as path from 'path';
+
+// --- Configuration Types ---
+interface DbConfig {
+  uri: string;
+  dbName: string;
+}
+
+interface DbRouteConfig {
+  databases: Record<string, DbConfig>;
+  rules: Array<{
+    field: string;
+    match: string;
+    target: string;
+  }>;
+  defaultTarget: string;
+}
+
+// --- Connection Pooling ---
+// Map of URI -> MongoClient Promise (to handle race conditions during connect)
+const connectionPool = new Map<string, Promise<MongoClient>>();
 
 export class MongoAdapter implements DatabaseAdapter {
+  private config: DbRouteConfig | null = null;
+
+  // These are now resolved dynamically per request, but we keep 'default' 
+  // values initialized for fallback or initial connection if needed.
+  private defaultUri: string;
+  private defaultDbName: string;
   private config: DbRouteConfig | null = null;
 
   // These are now resolved dynamically per request, but we keep 'default' 
@@ -33,6 +61,8 @@ export class MongoAdapter implements DatabaseAdapter {
   private collectionName: string;
 
   constructor() {
+    this.defaultUri = process.env.MONGODB_URI || '';
+    this.defaultDbName = process.env.MONGODB_DB_NAME || 'postpipe';
     this.defaultUri = process.env.MONGODB_URI || '';
     this.defaultDbName = process.env.MONGODB_DB_NAME || 'postpipe';
     this.collectionName = process.env.MONGODB_COLLECTION || 'submissions';
@@ -223,6 +253,12 @@ export class MongoAdapter implements DatabaseAdapter {
   }
 
   async disconnect(): Promise<void> {
+    // Close all connections
+    for (const [uri, clientPromise] of connectionPool.entries()) {
+      const client = await clientPromise;
+      await client.close();
+    }
+    connectionPool.clear();
     // Close all connections
     for (const [uri, clientPromise] of connectionPool.entries()) {
       const client = await clientPromise;

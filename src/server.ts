@@ -10,6 +10,7 @@ import nodeCrypto from 'crypto';
 dotenv.config();
 
 console.log("[Server] Environment Variables Loaded.");
+<<<<<<< HEAD
 
 // Check for MongoDB keys
 const mongoKeys = Object.keys(process.env).filter(k => k.startsWith('MONGODB_URI'));
@@ -27,6 +28,18 @@ if (mongoKeys.length === 0 && pgKeys.length === 0 && (process.env.DB_TYPE === 'm
 }
 
 
+=======
+console.log("[Server] MONGODB Keys detected:", Object.keys(process.env).filter(k => k.startsWith('MONGODB')));
+console.log(`[Server] CONNECTOR_ID: ${process.env.POSTPIPE_CONNECTOR_ID ? 'SET' : 'MISSING'}`);
+console.log(`[Server] CONNECTOR_SECRET: ${process.env.POSTPIPE_CONNECTOR_SECRET ? 'SET' : 'MISSING'}`);
+console.log(`[Server] MONGODB_URI: ${process.env.MONGODB_URI ? 'SET' : 'MISSING'}`);
+if (process.env.MONGODB_URI) {
+    console.log(`[Server] MONGODB_URI Target: ${process.env.MONGODB_URI.split('@').pop()}`); // Log the host part only
+} else {
+    console.warn(`[Server] WARNING: MONGODB_URI is not set. Defaulting to localhost?`);
+}
+
+>>>>>>> 7fff7310c74fae35b44c2946cfd83521848a29cc
 const app = express();
 const PORT = process.env.PORT || 3002;
 
@@ -148,6 +161,7 @@ app.post('/postpipe/ingest', async (req: Request, res: Response) => {
         }
 
         // 4. Persistence
+<<<<<<< HEAD
         // SMART ADAPTER SELECTION
         const payloadType = (payload as any).databaseConfig?.type;
         const targetName = (payload as any).targetDatabase || payload.targetDb;
@@ -171,6 +185,12 @@ app.post('/postpipe/ingest', async (req: Request, res: Response) => {
 
         console.log("[Server] Connecting to database...");
         await adapter.connect(payload);
+=======
+        console.log("[Server] Getting adapter...");
+        const adapter = getAdapter(); // getAdapter() might be async in some impls but usually synchronous factory
+        console.log("[Server] Connecting to DB...");
+        await adapter.connect();
+>>>>>>> 7fff7310c74fae35b44c2946cfd83521848a29cc
         console.log("[Server] Inserting payload...");
         await adapter.insert(payload);
 
@@ -209,6 +229,7 @@ app.get('/postpipe/data', authenticateConnector, async (req: Request, res: Respo
             return res.status(400).json({ error: "Invalid targetDatabase name" });
         }
 
+<<<<<<< HEAD
         // SMART ADAPTER SELECTION
         // Extract from query or config
         const queryType = req.query.dbType as string;
@@ -226,6 +247,11 @@ app.get('/postpipe/data', authenticateConnector, async (req: Request, res: Respo
         const adapter = getAdapter(resolvedType as string);
         // Ensure connection
         await adapter.connect({ databaseConfig: dbConfigParsed, targetDatabase: dbNameStr });
+=======
+        const adapter = getAdapter();
+        // Ensure connection
+        await adapter.connect();
+>>>>>>> 7fff7310c74fae35b44c2946cfd83521848a29cc
 
         const data = await adapter.query(String(formId), {
             limit: Number(limit) || 50,
@@ -245,6 +271,7 @@ app.get('/api/postpipe/forms/:formId/submissions', async (req: Request, res: Res
     try {
         const { formId } = req.params;
         const limit = parseInt(req.query.limit as string) || 50;
+<<<<<<< HEAD
         const { dbType, databaseConfig } = req.query;
 
         console.log(`[Server] Querying submissions for form: ${formId}`);
@@ -264,6 +291,16 @@ app.get('/api/postpipe/forms/:formId/submissions', async (req: Request, res: Res
         await adapter.connect({ databaseConfig: dbConfigParsed });
 
         const data = await adapter.query(formId, { limit, databaseConfig: dbConfigParsed });
+=======
+
+        console.log(`[Server] Querying submissions for form: ${formId}`);
+
+        const adapter = getAdapter();
+        // Ensure strictly connected/reconnected if needed
+        await adapter.connect();
+
+        const data = await adapter.query(formId, limit);
+>>>>>>> 7fff7310c74fae35b44c2946cfd83521848a29cc
         return res.json({ status: 'ok', data });
     } catch (e) {
         console.error("Query Error:", e);

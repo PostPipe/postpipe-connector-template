@@ -1,9 +1,10 @@
 import { DatabaseAdapter, PostPipeIngestPayload } from '../../types';
 import { MongoAdapter } from './mongodb';
-import { PostgresAdapter } from './postgres';
 
-export function getAdapter(forcedType?: string): DatabaseAdapter {
-  const type = forcedType?.toLowerCase() || process.env.DB_TYPE?.toLowerCase();
+
+export function getAdapter(): DatabaseAdapter {
+  // Auto-detect MongoDB if URI is present
+  const type = process.env.DB_TYPE?.toLowerCase() || (process.env.MONGODB_URI ? 'mongodb' : undefined);
 
   switch (type) {
     case 'mongodb':
@@ -18,9 +19,7 @@ export function getAdapter(forcedType?: string): DatabaseAdapter {
 }
 
 class MemoryAdapter implements DatabaseAdapter {
-  private store: PostPipeIngestPayload[] = [];
-
-  async connect(context?: any) {
+  async connect() {
     console.log("[MemoryAdapter] Connected (Data will be lost on restart)");
   }
   async insert(submission: PostPipeIngestPayload): Promise<void> {
