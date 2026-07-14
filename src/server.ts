@@ -68,11 +68,15 @@ const VAR_PREFIX = process.env.POSTPIPE_VAR_PREFIX || "";
 
 const CONNECTOR_ID = getPrefixedEnv('POSTPIPE_CONNECTOR_ID');
 const CONNECTOR_SECRET = getPrefixedEnv('POSTPIPE_CONNECTOR_SECRET') || getPrefixedEnv('JWT_SECRET');
+const POSTPIPE_CORE_URL = getPrefixedEnv('POSTPIPE_CORE_URL') || 'http://127.0.0.1:9002';
 
 if (!CONNECTOR_ID || !CONNECTOR_SECRET) {
     console.error("❌ CRITICAL ERROR: POSTPIPE_CONNECTOR_ID or POSTPIPE_CONNECTOR_SECRET is missing.");
     process.exit(1);
 }
+
+// --- Legacy RBAC Polling Removed ---
+
 
 // --- Rate Limiting (Simple In-Memory) ---
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
@@ -101,6 +105,20 @@ function rateLimit(req: Request, res: Response, next: express.NextFunction) {
     next();
 }
 
+// Support Private Network Access preflights (required when hitting localhost from a public secure/unsecure context like file:// or custom domains)
+app.use((req, res, next) => {
+    if (req.headers['access-control-request-private-network']) {
+        res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    }
+    if (req.method === 'OPTIONS') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With');
+        return res.sendStatus(200);
+    }
+    next();
+});
+
 app.use(cors({ origin: '*' }));
 app.use(cookieParser());
 
@@ -117,9 +135,13 @@ app.use(express.json({
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // --- Public Auth Route (CORS open) ---
+import rbacRouter from './routes/rbac';
+import { rbscRouter } from './routes/rbsc';
+
 app.use('/api/auth', authRouter);
 app.use('/api/public/cdn', cdnRouter);
-
+app.use('/api/rbac', rbacRouter);
+app.use('/postpipe/rbsc', rbscRouter);
 
 
 app.use(rateLimit);
@@ -220,7 +242,7 @@ function authenticateConnector(req: Request, res: Response, next: express.NextFu
     return res.status(403).json({ error: "Forbidden: Invalid Token" });
 }
 
-// ----------------------------------------
+// Removed legacy rbac-db imports
 
 // @ts-ignore
 app.post('/postpipe/ingest', async (req: Request, res: Response) => {
@@ -453,7 +475,7 @@ app.post('/postpipe/ingest', async (req: Request, res: Response) => {
 // @ts-ignore
 app.get('/postpipe/data', authenticateConnector, async (req: Request, res: Response) => {
     try {
-        const { formId, limit, page, targetDatabase, databaseConfig, includeDeleted, filter } = req.query;
+        const { formId, formName, limit, page, targetDatabase, databaseConfig, includeDeleted, filter } = req.query;
 
         if (!formId) {
             return res.status(400).json({ error: "formId required" });
@@ -506,6 +528,7 @@ app.get('/postpipe/data', authenticateConnector, async (req: Request, res: Respo
         await adapter.connect({ databaseConfig: dbConfigParsed, targetDatabase: dbNameStr });
 
         const data = await adapter.query(String(formId), {
+            formName: formName ? String(formName) : undefined,
             limit: Number(limit) || 50,
             page: Number(page) || 1,
             targetDatabase: dbNameStr,
@@ -526,9 +549,9 @@ app.get('/postpipe/data', authenticateConnector, async (req: Request, res: Respo
 app.patch('/postpipe/data/:submissionId', authenticateConnector, async (req: Request, res: Response) => {
     try {
         const { submissionId } = req.params;
-        const { formId, patch, targetDatabase, databaseConfig } = req.body;
+        const { formId, formName, patch, targetDatabase, databaseConfig } = req.body;
 
-        console.log(`[PATCH] submissionId=${submissionId}, formId=${formId}, targetDatabase=${targetDatabase}`);
+        console.log(`[PATCH] submissionId=${submissionId}, formId=${formId}, formName=${formName}, targetDatabase=${targetDatabase}`);
         console.log(`[PATCH] databaseConfig=`, databaseConfig);
         console.log(`[PATCH] databaseConfig.type=`, databaseConfig?.type);
 
@@ -543,7 +566,8 @@ app.patch('/postpipe/data/:submissionId', authenticateConnector, async (req: Req
 
         const success = await adapter.updateSubmission(formId, submissionId, patch, {
             targetDatabase,
-            databaseConfig
+            databaseConfig,
+            formName: formName || formId
         });
 
         if (success) {
@@ -588,7 +612,7 @@ app.delete('/postpipe/data/:submissionId', authenticateConnector, async (req: Re
 });
 
 // @ts-ignore
-app.get('/api/postpipe/forms/:formId/submissions', async (req: Request, res: Response) => {
+app.get('/api/postpipe/forms/:formId/submissions', authenticateConnector, async (req: Request, res: Response) => {
     try {
         const { formId } = req.params;
         const limit = parseInt(req.query.limit as string) || 50;

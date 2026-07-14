@@ -44,6 +44,12 @@ export interface DatabaseAdapter {
   updateUserPassword(userId: string, newPasswordHash: string, context?: any): Promise<void>;
   verifyUserEmail(userId: string, context?: any): Promise<void>;
   updateUserOtp(userId: string, otp: string, expiresAt: Date, context?: any): Promise<void>;
+
+  // RBAC methods
+  initRBACSchema?(tableName: string, rolesCol: string, context?: any): Promise<void>;
+  verifyRBACLogin?(tableName: string, emailCol: string, passwordCol: string, rolesCol: string, email: string, password: string, context?: any): Promise<any>;
+  addRBSCSchemaToTable?(tableName: string, rolesCol: string, context?: any): Promise<void>;
+  addRBSCSchemaToCollection?(tableName: string, rolesCol: string, context?: any): Promise<void>;
 }
 
 export interface QueryOptions {
@@ -53,6 +59,7 @@ export interface QueryOptions {
   databaseConfig?: any;
   filter?: Record<string, any>;
   includeDeleted?: boolean;
+  formName?: string;
 }
 
 export interface ConnectorConfig {
