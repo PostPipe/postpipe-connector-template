@@ -3,6 +3,7 @@
 This is a self-hosted connector for [PostPipe](https://postpipe.in).
 It acts as a secure bridge between PostPipe's Ingest API and your private database.
 
+
 ## 🚨 Security Principles
 
 1.  **Zero Trust**: This connector never trusts the payload blindly. It verifies the request signature `X-PostPipe-Signature` using your `JWT_SECRET` (or `POSTPIPE_CONNECTOR_SECRET`).
