@@ -14,7 +14,7 @@ jobs:
   sync-template:
     runs-on: ubuntu-latest
     # Skip running if executed inside the source template repository itself
-    if: github.repository != 'Sourodip-1/postpipe-connector-template'
+    if: github.repository != 'PostPipe/postpipe-connector-template' && github.repository != 'Sourodip-1/postpipe-connector-template'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,7 +22,7 @@ jobs:
       - name: Sync with template
         uses: AndreasAugustin/actions-template-sync@v2
         with:
-          source_repo_path: Sourodip-1/postpipe-connector-template
+          source_repo_path: PostPipe/postpipe-connector-template
           upstream_branch: main
           pr_title: 'chore(template): sync updates from upstream template'
           pr_commit_msg: 'chore(template): sync updates from upstream template'
@@ -30,6 +30,6 @@ jobs:
           pr_description: |
             ### 🔄 Automated Template Sync
             
-            This automated PR synchronizes your connector repository with the latest official updates from [`Sourodip-1/postpipe-connector-template`](https://github.com/Sourodip-1/postpipe-connector-template).
+            This automated PR synchronizes your connector repository with the latest official updates from [`PostPipe/postpipe-connector-template`](https://github.com/PostPipe/postpipe-connector-template).
             
             Please review the changes and merge to keep your connector up-to-date with security patches and new features.
