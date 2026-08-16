@@ -1,8 +1,7 @@
-# PostPipe Connector V2
+# PostPipe Connector V3
 
 This is a self-hosted connector for [PostPipe](https://postpipe.in).
 It acts as a secure bridge between PostPipe's Ingest API and your private database.
-
 
 ## 🚨 Security Principles
 
@@ -64,9 +63,11 @@ This project is set up as a standard Express app. To deploy to Vercel, simply ad
 The Postpipe Connector supports a powerful aliasing system. This allows you to deploy a single connector and serve multiple frontends/projects, each with its own configuration, by prefixing environment variables.
 
 ### 1. Security Keys & Routing
+
 The connector prioritizes `JWT_SECRET` for signing and verifying tokens. If you provide an `envFrontendUrlAlias` (e.g., `APP1`) in your dashboard configuration, the connector will search for variables prefixed with that alias first.
 
 Example `.env`:
+
 ```env
 # Global
 JWT_SECRET="global-secret"
@@ -77,9 +78,11 @@ APP1_FRONTEND_URL="https://app1.com/reset-password"
 ```
 
 ### 2. SMTP Alias System
+
 SMTP settings can also be aliased. If a project sends identifying metadata (like `envFrontendUrlAlias`), the connector will look for SMTP variables with that prefix.
 
 Example `.env` for alias `APP1`:
+
 ```env
 APP1_EMAIL_PROVIDER="nodemailer"
 APP1_SMTP_HOST="smtp.gmail.com"
