@@ -1,0 +1,9 @@
+[
+    "package.json",
+    "package-lock.json",
+    ".github/",
+    "api/",
+    "vercel.json",
+    "Dockerfile",
+    "README.md"
+]
