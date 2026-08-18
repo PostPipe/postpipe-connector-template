@@ -1,4 +1,4 @@
-# PostPipe Connector V3 Working
+# PostPipe Connector V3 Published 18/08/26
 
 This is a self-hosted connector for [PostPipe](https://postpipe.in).
 It acts as a secure bridge between PostPipe's Ingest API and your private database.
