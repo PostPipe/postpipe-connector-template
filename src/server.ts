@@ -23,6 +23,10 @@ mainApp.get('/api/postpipe/health', (req, res) => {
     return res.status(401).json({ error: 'Unauthorized: Invalid or missing token' });
 });
 
+mainApp.get('/health', (req, res) => {
+    return res.status(200).json({ status: 'ok', message: 'Connector is healthy' });
+});
+
 const postpipeApp = createPostPipeServer();
 mainApp.use(postpipeApp);
 
@@ -30,7 +34,8 @@ if (require.main === module) {
     mainApp.listen(PORT, () => {
         console.log(`🔒 PostPipe Connector Template listening on port ${PORT}`);
         console.log(`📝 Default Mode: ${process.env.DB_TYPE || 'InMemory'}`);
-        console.log(`🌐 Health Check: http://localhost:${PORT}/api/postpipe/health`);
+        console.log(`🌐 Health Check: http://localhost:${PORT}/health`);
+        console.log(`🛡️  Auth Health Check: http://localhost:${PORT}/api/postpipe/health`);
     });
 }
 
